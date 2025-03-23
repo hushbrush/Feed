@@ -1,73 +1,70 @@
 
-const API ={ satellite: "iEtTLBumhiw8bLDvxDiPnuYqf3foQlYfWJDPZcmr", flight: "33235ba0527c53e9bf0f37a80df07f10", asteroid: "iEtTLBumhiw8bLDvxDiPnuYqf3foQlYfWJDPZcmr"}
+const API ={  asteroid: "iEtTLBumhiw8bLDvxDiPnuYqf3foQlYfWJDPZcmr"}
 
 
-//Pseudocode:
-//1. Fetch satellite data, flight data, and asteroid data from respective apis
-//2. convert data into json in satelliteData, flightData, and asteroidData
-//3. filter out inactive satellites, flights, and asteroids
-//4. get the coordinates
-//5. display active satellites, flights, and asteroids that are currently moving, in real time according to their locations(X and Y)
 
+let previousData = null; // Store the last dataset to prevent redundant updates
 
 async function fetchAllData() {
-// Fetch asteroid data from NASA using the global API key for asteroid
-const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=2025-03-11&end_date=2025-03-11&api_key=${API.asteroid}`;
-    
-// Fetch flight data using the global API key for flight
-const flightUrl = `https://api.aviationstack.com/v1/flights?access_key=${API.flight}`;
+    const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
 
-// Fetch satellite data using the global API key for satellite
-const satelliteUrl = `https://sscweb.gsfc.nasa.gov/WS/sscr/2/api_key=${API.satellite}`;
+    // Correct API call: Fetch only today’s data
+    const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API.asteroid}`;
 
     try {
-        // Fetch asteroid data
-        const asteroidResponse = await fetch(asteroidUrl);
-        const asteroidData = await asteroidResponse.json();
-        console.log("Asteroids:", asteroidData);
+        const response = await fetch(asteroidUrl);
+        const newData = await response.json();
 
-        // display today's data on screen
-        display_asteroids(asteroidData);
-       
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+        // Prevent redundant updates
+        if (JSON.stringify(newData) !== JSON.stringify(previousData)) {
+            console.log("New Asteroid Data:", newData);
+            previousData = newData; // Store the latest data
+            display_asteroids(newData, today);
+        } else {
+            console.log("No new asteroid data, skipping update.");
+        }
     } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching asteroid data:", error);
+    } finally {
+        setTimeout(fetchAllData, 300000); // Fetch again in 5 minutes
     }
 }
 
-// Call the function to fetch and display data
-fetchAllData();
-
-// Function to display asteroids as circles
-function display_asteroids(data) {
-    var  xPosition = 10; // Initial x position for first asteroid
-    const asteroids = data.near_earth_objects['2025-03-11'];
-    
-    // Add a container div if necessary
+function display_asteroids(data, today) {
     const container = d3.select("#asteroids");
-    // Loop through each asteroid and display it as a circle using D3.js
-    asteroids.forEach(asteroid => {
-        const estimatedDiameter = asteroid.estimated_diameter.meters;
-        const diameterInPixels = estimatedDiameter.estimated_diameter_min ; // Scale down diameter for visibility
-        console.log("Diameter:", diameterInPixels);
-        // Create a new circle element for each asteroid
-        container
-        .append("div")
-        .attr("class", "asteroid")
-        .style("width", `${diameterInPixels}px`)
-        .style("height", `${diameterInPixels}px`)
-        .style("left", `${xPosition}px`) // Set left position for horizontal layout
-        .attr("title", asteroid.name); // Add asteroid name as title
+    container.html(""); // Clear old data
 
-    // Increase xPosition for next asteroid, adding a gap between them
-        xPosition += diameterInPixels + 10; // Add a 10px gap between asteroids
-        });
+    let xPosition = 10;
+    const asteroids = data.near_earth_objects[today] || []; // Default to empty array if no data
+
+    container.style("background-color", "black");
+
+    asteroids.forEach(asteroid => {
+        console.log("Asteroid:", asteroid.name);
+        const estimatedDiameter = asteroid.estimated_diameter.meters;
+        const diameterInPixels = estimatedDiameter.estimated_diameter_min; 
+
+        // Main asteroid circle
+        container
+            .append("div")
+            .attr("class", "asteroid")
+            .style("width", `${diameterInPixels}px`)
+            .style("height", `${diameterInPixels}px`)
+            .style("left", `${xPosition}px`)
+            .style("position", "absolute")
+            .style("background-color", "black")
+            .style("border-radius", "50%")
+            .style("opacity", "1")
+            .attr("title", asteroid.name);
+
+        xPosition += diameterInPixels + 10; 
+    });
 }
 
-
-
-
-
-
+// Run immediately, then every 5 minutes
+fetchAllData();
 
 
 function xmlToJson(xml) {
@@ -106,3 +103,49 @@ function xmlToJson(xml) {
     }
     return obj;
 }
+
+
+
+//code for a different iteration conceptually
+// function lookalikesDataFetcher(){
+//     const marsUrl = `https://api.nasa.gov/mars-photos/api/v1/rovers/curiosity/photos?earth_date=2025-3-16&api_key=${API.asteroid}`;
+//     fetch(marsUrl)
+//     .then(response => response.json())
+//     .then(data => {
+//         console.log("Mars data:", data);
+//         lookalikes(data)
+//     })
+//     .catch(error => {
+//         console.error("Error fetching data:", error);
+//     });
+
+
+// }
+// lookalikesDataFetcher()
+
+// console.log(lookalikesDataFetcher());
+// function lookalikes(mars_data){
+    
+//     const container2 = d3.select("#earth_lookalikes");
+//     mars_data.photos.forEach(photo => {
+        
+//         const img = document.createElement("img");
+//         img.src = photo.img_src;
+//         const text = document.createElement("p");
+//         text.textContent = photo.rover.name;
+//         container2
+//         .append("div")
+//         .attr("class", "mars-photo-container") // A class for styling if needed
+//         .append("img")
+//         .attr("src", photo.img_src)
+//         .attr("alt", `Mars photo taken by ${photo.rover.name}`)
+//         .style("width", "200px") // Adjust width as needed
+//         .style("height", "auto") // Maintain aspect ratio
+//         .append(() => text);
+     
+  
+
+    
+
+// }  )}
+
