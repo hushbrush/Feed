@@ -1,0 +1,9 @@
+{
+  "name": "asteroid-data-fetch",
+  "version": "1.0.0",
+  "description": "Fetch asteroid data from NASA API",
+  "main": "fetchData.js",
+  "dependencies": {
+    "node-fetch": "^2.6.1"
+  }
+}
