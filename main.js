@@ -22,6 +22,7 @@ const solarSystem = {
     x: 0,
     y: 0,
     scale: 1,
+    zoomFactor: 6, // Higher value for much more zoomed in view
   },
   keys: {
     up: false,
@@ -40,11 +41,31 @@ const solarSystem = {
     ANIMATION_INTERVAL: 16, // ~60 FPS
     EARTH_SIZE: 60,
     TOOLTIP_DELAY: 500,
+    SHIP_ON_EARTH: true, // Start with ship on Earth
   },
   tooltip: null,
   infoPanel: null,
   tooltipTimeout: null,
 };
+
+// Position ship over Earth
+function positionShipOnEarth() {
+  if (!solarSystem.constants.SHIP_ON_EARTH) return;
+
+  const earthSize = solarSystem.constants.EARTH_SIZE * 2;
+  const shipSize = 32; // Match the CSS size
+
+  // Position ship at the top center of Earth
+  const containerRect = solarSystem.container.getBoundingClientRect();
+  const earthCenterX = containerRect.width / 2;
+  const earthCenterY = containerRect.height / 2;
+
+  solarSystem.ship.x = earthCenterX;
+  solarSystem.ship.y = earthCenterY - earthSize / 2 + shipSize / 4; // Position near top of Earth
+  solarSystem.ship.angle = 0; // Point up
+
+  updateShipPosition();
+}
 
 // Initialize the solar system
 async function initSolarSystem() {
@@ -83,6 +104,9 @@ async function initSolarSystem() {
 
     // Build the solar system
     createSolarSystem();
+
+    // Position ship on Earth
+    positionShipOnEarth();
 
     // Start game loop
     solarSystem.loaded = true;
@@ -130,11 +154,13 @@ function setupNavShip() {
   solarSystem.container.appendChild(ship);
   solarSystem.ship.element = ship;
 
-  // Initial position at center
+  // Set initial ship position to be at Earth's center
+  // The Earth is at the center of the coordinates
   const containerRect = solarSystem.container.getBoundingClientRect();
-  solarSystem.ship.x = containerRect.width / 2;
-  solarSystem.ship.y = containerRect.height / 2;
+  solarSystem.ship.x = containerRect.width / 2; // Center of container
+  solarSystem.ship.y = containerRect.height / 2; // Center of container
 
+  // Position ship at center of screen (visual position never changes)
   updateShipPosition();
 }
 
@@ -200,7 +226,7 @@ function createSolarSystem() {
 
 // Create Earth at the center
 function createEarth(centerX, centerY) {
-  const earthSize = solarSystem.constants.EARTH_SIZE;
+  const earthSize = solarSystem.constants.EARTH_SIZE * 2; // Make Earth significantly larger
   const earth = document.createElement("div");
   earth.className = "earth";
   earth.style.width = `${earthSize}px`;
@@ -221,7 +247,7 @@ function createEarth(centerX, centerY) {
   solarSystem.container.appendChild(earth);
 }
 
-// Create orbit circles
+// Create orbit circles - with modifications to make them more visible with zoom
 function createOrbits(centerX, centerY) {
   // Calculate orbit sizes based on asteroid and planet distances
   const distances = new Set();
@@ -246,10 +272,19 @@ function createOrbits(centerX, centerY) {
     }
   });
 
-  // Sort distances and create orbits
+  // Sort distances and create orbits - limit the number of orbits for clarity
   const sortedDistances = Array.from(distances).sort((a, b) => a - b);
 
-  sortedDistances.forEach((distance) => {
+  // Only show some of the orbits to avoid clutter
+  const maxOrbits = 15;
+  const orbitsToShow =
+    sortedDistances.length <= maxOrbits
+      ? sortedDistances
+      : sortedDistances.filter(
+          (_, i) => i % Math.ceil(sortedDistances.length / maxOrbits) === 0
+        );
+
+  orbitsToShow.forEach((distance) => {
     const orbitRadius = distanceToPixels(distance);
     const orbit = document.createElement("div");
     orbit.className = "orbit";
@@ -321,11 +356,12 @@ function createAsteroids(centerX, centerY) {
     const orbitRadius = distanceToPixels(missDistance);
 
     // Set the diameter in pixels based on the minimum estimated diameter in meters
+    // Scale to approximately half size (divide by 2)
     // Add constraints to keep sizes reasonable for visualization
-    // Minimum size of 3px so even small asteroids are visible
-    // Maximum size of 50px to prevent giant asteroids from dominating the view
+    // Minimum size of 2px so even small asteroids are visible
+    // Maximum size of 25px to prevent giant asteroids from dominating the view
     const minSizeMeters = asteroid.estimated_diameter_meters.min;
-    const diameterInPixels = Math.max(3, Math.min(50, minSizeMeters));
+    const diameterInPixels = Math.max(2, Math.min(25, minSizeMeters / 2));
 
     // Create asteroid element
     const asteroidElement = document.createElement("div");
@@ -409,7 +445,7 @@ function createAsteroids(centerX, centerY) {
   });
 }
 
-// Convert astronomical distance to pixels for visualization
+// Convert astronomical distance to pixels for visualization with zoom consideration
 function distanceToPixels(distance) {
   const { MIN_DISTANCE, MAX_DISTANCE } = solarSystem.constants;
 
@@ -424,7 +460,9 @@ function distanceToPixels(distance) {
   // Calculate radius in pixels (min 50px, max is half the smaller container dimension)
   const containerRect = solarSystem.container.getBoundingClientRect();
   const maxRadius = Math.min(containerRect.width, containerRect.height) * 0.45;
-  return 50 + proportion * (maxRadius - 50);
+
+  // Apply zoom factor to make orbits appear larger
+  return (50 + proportion * (maxRadius - 50)) * solarSystem.camera.zoomFactor;
 }
 
 // Show tooltip with information
@@ -449,14 +487,15 @@ function hideTooltip() {
 function gameLoop() {
   if (!solarSystem.loaded) return;
 
-  // Update ship
+  // Update ship position and rotation based on controls
   updateShip();
 
-  // Update asteroids
-  updateAsteroids();
-
-  // Update camera and world position
+  // Update camera to follow ship (keeps ship centered)
   updateCamera();
+
+  // Update all celestial bodies
+  updateAsteroids();
+  updateElementPositions();
 
   // Update info panel
   updateInfoPanel();
@@ -467,6 +506,9 @@ function gameLoop() {
 
 // Update ship position and rotation based on controls
 function updateShip() {
+  const prevX = solarSystem.ship.x;
+  const prevY = solarSystem.ship.y;
+
   // Update rotation
   if (solarSystem.keys.left) {
     solarSystem.ship.angle -= solarSystem.ship.rotationSpeed;
@@ -481,11 +523,15 @@ function updateShip() {
       solarSystem.ship.maxSpeed,
       solarSystem.ship.speed + solarSystem.ship.acceleration
     );
+    // When we start moving, ship is no longer on Earth
+    solarSystem.constants.SHIP_ON_EARTH = false;
   } else if (solarSystem.keys.down) {
     solarSystem.ship.speed = Math.max(
       -solarSystem.ship.maxSpeed / 2,
       solarSystem.ship.speed - solarSystem.ship.acceleration
     );
+    // When we start moving, ship is no longer on Earth
+    solarSystem.constants.SHIP_ON_EARTH = false;
   } else {
     // Apply deceleration when no keys are pressed
     if (solarSystem.ship.speed > 0) {
@@ -503,8 +549,18 @@ function updateShip() {
 
   // Update position
   const radians = (solarSystem.ship.angle * Math.PI) / 180;
-  solarSystem.ship.x += Math.sin(radians) * solarSystem.ship.speed;
-  solarSystem.ship.y -= Math.cos(radians) * solarSystem.ship.speed;
+
+  // If ship is still on Earth, keep it positioned there
+  if (solarSystem.constants.SHIP_ON_EARTH) {
+    // Position ship on Earth's surface
+    const containerRect = solarSystem.container.getBoundingClientRect();
+    solarSystem.ship.x = containerRect.width / 2;
+    solarSystem.ship.y = containerRect.height / 2;
+  } else {
+    // Normal movement physics
+    solarSystem.ship.x += Math.sin(radians) * solarSystem.ship.speed;
+    solarSystem.ship.y -= Math.cos(radians) * solarSystem.ship.speed;
+  }
 
   // Update visual position and rotation
   updateShipPosition();
@@ -514,14 +570,22 @@ function updateShip() {
 function updateShipPosition() {
   if (!solarSystem.ship.element) return;
 
+  // Ship stays fixed at the center of the screen
+  const containerRect = solarSystem.container.getBoundingClientRect();
+  const screenCenterX = containerRect.width / 2;
+  const screenCenterY = containerRect.height / 2;
+
+  // Only update rotation, position is always center of screen
   solarSystem.ship.element.style.transform = `translate(-50%, -50%) rotate(${solarSystem.ship.angle}deg)`;
-  solarSystem.ship.element.style.left = `${solarSystem.ship.x}px`;
-  solarSystem.ship.element.style.top = `${solarSystem.ship.y}px`;
+  solarSystem.ship.element.style.left = `${screenCenterX}px`;
+  solarSystem.ship.element.style.top = `${screenCenterY}px`;
 }
 
 // Update asteroids' positions based on time
 function updateAsteroids() {
   const asteroidElements = document.querySelectorAll(".asteroid");
+  const containerRect = solarSystem.container.getBoundingClientRect();
+  const viewportBuffer = 100; // Extra buffer beyond viewport to keep asteroids active
 
   asteroidElements.forEach((asteroidElement) => {
     // Get asteroid data
@@ -544,19 +608,35 @@ function updateAsteroids() {
     const screenX = xPosition - solarSystem.camera.x;
     const screenY = yPosition - solarSystem.camera.y;
 
-    // Update position
-    asteroidElement.style.left = `${screenX - diameter / 2}px`;
-    asteroidElement.style.top = `${screenY - diameter / 2}px`;
+    // Check if asteroid is within viewport (plus buffer)
+    const isVisible =
+      screenX >= -viewportBuffer &&
+      screenX <= containerRect.width + viewportBuffer &&
+      screenY >= -viewportBuffer &&
+      screenY <= containerRect.height + viewportBuffer;
+
+    // Only update visible asteroids for performance
+    if (isVisible) {
+      asteroidElement.style.display = "block";
+      asteroidElement.style.left = `${screenX - diameter / 2}px`;
+      asteroidElement.style.top = `${screenY - diameter / 2}px`;
+    } else {
+      asteroidElement.style.display = "none";
+    }
   });
 }
 
 // Update camera position to follow ship
 function updateCamera() {
-  // Camera follows the ship
-  solarSystem.camera.x =
-    solarSystem.ship.x - solarSystem.container.offsetWidth / 2;
-  solarSystem.camera.y =
-    solarSystem.ship.y - solarSystem.container.offsetHeight / 2;
+  // Camera is always centered on the ship
+  // Calculate camera position based on ship's position
+  const containerRect = solarSystem.container.getBoundingClientRect();
+  const screenCenterX = containerRect.width / 2;
+  const screenCenterY = containerRect.height / 2;
+
+  // Calculate camera offset to keep ship centered
+  solarSystem.camera.x = solarSystem.ship.x - screenCenterX;
+  solarSystem.camera.y = solarSystem.ship.y - screenCenterY;
 
   // Update positions of all elements based on camera
   updateElementPositions();
@@ -567,7 +647,7 @@ function updateElementPositions() {
   // Update Earth position
   const earth = document.querySelector(".earth");
   if (earth) {
-    const earthSize = solarSystem.constants.EARTH_SIZE;
+    const earthSize = solarSystem.constants.EARTH_SIZE * 2; // Match the size used in createEarth
     const screenX = solarSystem.earthPosition.x - solarSystem.camera.x;
     const screenY = solarSystem.earthPosition.y - solarSystem.camera.y;
 
