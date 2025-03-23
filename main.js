@@ -22,7 +22,7 @@ const solarSystem = {
     x: 0,
     y: 0,
     scale: 1,
-    zoomFactor: 6, // Higher value for much more zoomed in view
+    zoomFactor: 4, // Reduced from 6 to 4 for a slightly wider view
   },
   keys: {
     up: false,
@@ -35,8 +35,8 @@ const solarSystem = {
     y: 0,
   },
   constants: {
-    MIN_DISTANCE: 20000,
-    MAX_DISTANCE: 150000000,
+    MIN_DISTANCE: 15000, // Reduced minimum distance
+    MAX_DISTANCE: 100000000, // Reduced maximum distance to bring asteroids closer
     ORBIT_SEGMENTS: 100,
     ANIMATION_INTERVAL: 16, // ~60 FPS
     EARTH_SIZE: 60,
@@ -151,6 +151,17 @@ async function loadAsteroidData() {
 function setupNavShip() {
   const ship = document.createElement("div");
   ship.className = "nav-ship";
+
+  // Create an img element for the SVG
+  const shipImage = document.createElement("img");
+  shipImage.src = "assets/ship.svg";
+  shipImage.alt = "Spaceship";
+  shipImage.style.width = "100%";
+  shipImage.style.height = "100%";
+
+  // Add the image to the ship div
+  ship.appendChild(shipImage);
+
   solarSystem.container.appendChild(ship);
   solarSystem.ship.element = ship;
 
@@ -363,33 +374,55 @@ function createAsteroids(centerX, centerY) {
     const minSizeMeters = asteroid.estimated_diameter_meters.min;
     const diameterInPixels = Math.max(2, Math.min(25, minSizeMeters / 2));
 
+    // Get velocity in km/s for tooltip display
+    const velocityKmS = parseFloat(
+      asteroid.close_approach_data[0].relative_velocity.kilometers_per_second
+    );
+
+    // Get velocity in km/h for animation calculations
+    const velocityKmH = parseFloat(
+      asteroid.close_approach_data[0].relative_velocity.kilometers_per_hour
+    );
+
     // Create asteroid element
     const asteroidElement = document.createElement("div");
     asteroidElement.className = "asteroid";
+    // Add sentry class if it's a sentry object
+    if (asteroid.is_sentry_object === true) {
+      asteroidElement.classList.add("sentry-object");
+    }
     asteroidElement.style.width = `${diameterInPixels}px`;
     asteroidElement.style.height = `${diameterInPixels}px`;
 
     // Store asteroid data for animation
     asteroidElement.dataset.name = asteroid.name;
     asteroidElement.dataset.distance = missDistance;
+    asteroidElement.dataset.velocityKmS = velocityKmS; // Store velocity in km/s for tooltip
     asteroidElement.dataset.orbitRadius = orbitRadius;
     asteroidElement.dataset.centerX = centerX;
     asteroidElement.dataset.centerY = centerY;
     asteroidElement.dataset.diameter = diameterInPixels;
     asteroidElement.dataset.actualDiameter = minSizeMeters; // Store actual size for tooltip
+    asteroidElement.dataset.isSentry = asteroid.is_sentry_object; // Store sentry status
 
-    // Calculate velocity for orbit speed
-    // Get the velocity in km/h
-    const velocity = parseFloat(
-      asteroid.close_approach_data[0].relative_velocity.kilometers_per_hour
+    // Create permanent tooltip for the asteroid with more information
+    const tooltipElement = document.createElement("div");
+    tooltipElement.className = "permanent-tooltip";
+    tooltipElement.innerHTML = formatAsteroidTooltip(
+      asteroid.name,
+      velocityKmS,
+      missDistance
     );
+    tooltipElement.dataset.tooltipFor = asteroidElement.id =
+      "asteroid-" + Math.random().toString(36).substr(2, 9);
+    solarSystem.container.appendChild(tooltipElement);
 
     // Calculate how much of the circle (in radians) the asteroid should move per frame
     // A full circle (2π radians) represents a full day (24 hours)
     // So the velocity determines what fraction of the day is covered per hour
     // Then we adjust for the frame rate (60fps = 3600 frames per hour)
     const radiansPerHour = (2 * Math.PI) / 24; // Base movement: full circle in 24 hours
-    const velocityFactor = velocity / 50000; // Scale factor to make velocity differences visible
+    const velocityFactor = velocityKmH / 50000; // Scale factor to make velocity differences visible
     const scaledRadiansPerHour = radiansPerHour * (1 + velocityFactor); // Adjust speed based on velocity
     const radiansPerFrame = scaledRadiansPerHour / 3600; // Convert to radians per frame (assuming 60fps)
 
@@ -402,10 +435,6 @@ function createAsteroids(centerX, centerY) {
     const dayProgress = hoursOfDay / 24; // 0 to 1 representing progress through the day
 
     // Convert to angle in radians (0 to 2π)
-    // 0 hours = 0 radians (right side of circle, 3 o'clock position)
-    // 6 hours = π/2 radians (bottom of circle, 6 o'clock position)
-    // 12 hours = π radians (left side of circle, 9 o'clock position)
-    // 18 hours = 3π/2 radians (top of circle, 12 o'clock position)
     const angle = dayProgress * 2 * Math.PI;
     asteroidElement.dataset.angle = angle;
 
@@ -417,32 +446,15 @@ function createAsteroids(centerX, centerY) {
     asteroidElement.style.left = `${xPosition - diameterInPixels / 2}px`;
     asteroidElement.style.top = `${yPosition - diameterInPixels / 2}px`;
 
-    // Add event listeners for tooltip
-    asteroidElement.addEventListener("mouseover", () => {
-      const tooltip = `${asteroid.name}\nDiameter: ${minSizeMeters.toFixed(
-        1
-      )} meters\nDistance: ${(missDistance / 1000000).toFixed(
-        2
-      )}M km\nVelocity: ${(velocity / 3600).toFixed(
-        2
-      )} km/s\nTime: ${date.getUTCHours()}:${date
-        .getUTCMinutes()
-        .toString()
-        .padStart(2, "0")}`;
-      showTooltip(
-        asteroidElement,
-        tooltip,
-        xPosition,
-        yPosition - diameterInPixels - 20
-      );
-    });
-
-    asteroidElement.addEventListener("mouseout", () => {
-      hideTooltip();
-    });
-
     solarSystem.container.appendChild(asteroidElement);
   });
+}
+
+// Format tooltip text for asteroids
+function formatAsteroidTooltip(name, velocity, distance) {
+  return `${name}<br>Velocity: ${velocity.toFixed(2)} km/s<br>Distance: ${(
+    distance / 1000000
+  ).toFixed(2)}M km`;
 }
 
 // Convert astronomical distance to pixels for visualization with zoom consideration
@@ -457,12 +469,12 @@ function distanceToPixels(distance) {
   // Calculate radius proportion (0 to 1)
   const proportion = (logDist - logMin) / (logMax - logMin);
 
-  // Calculate radius in pixels (min 50px, max is half the smaller container dimension)
+  // Calculate radius in pixels (min 40px, max is 40% of the smaller container dimension)
   const containerRect = solarSystem.container.getBoundingClientRect();
-  const maxRadius = Math.min(containerRect.width, containerRect.height) * 0.45;
+  const maxRadius = Math.min(containerRect.width, containerRect.height) * 0.4;
 
   // Apply zoom factor to make orbits appear larger
-  return (50 + proportion * (maxRadius - 50)) * solarSystem.camera.zoomFactor;
+  return (40 + proportion * (maxRadius - 40)) * solarSystem.camera.zoomFactor;
 }
 
 // Show tooltip with information
@@ -620,8 +632,31 @@ function updateAsteroids() {
       asteroidElement.style.display = "block";
       asteroidElement.style.left = `${screenX - diameter / 2}px`;
       asteroidElement.style.top = `${screenY - diameter / 2}px`;
+
+      // Update permanent tooltip position - position it to the right of the asteroid
+      const tooltip = document.querySelector(
+        `.permanent-tooltip[data-tooltip-for="${asteroidElement.id}"]`
+      );
+      if (tooltip) {
+        tooltip.style.display = "block";
+        // Position tooltip to the right of the asteroid with a small gap
+        tooltip.style.left = `${screenX + diameter + 10}px`;
+        tooltip.style.top = `${
+          screenY - tooltip.offsetHeight / 2 + diameter / 2
+        }px`;
+        // Reset transform that was centering it above
+        tooltip.style.transform = "none";
+      }
     } else {
       asteroidElement.style.display = "none";
+
+      // Hide tooltip when asteroid is not visible
+      const tooltip = document.querySelector(
+        `.permanent-tooltip[data-tooltip-for="${asteroidElement.id}"]`
+      );
+      if (tooltip) {
+        tooltip.style.display = "none";
+      }
     }
   });
 }
@@ -695,20 +730,68 @@ function updateInfoPanel() {
   // Calculate distance from Earth
   const dx = solarSystem.ship.x - solarSystem.earthPosition.x;
   const dy = solarSystem.ship.y - solarSystem.earthPosition.y;
-  const distance = Math.sqrt(dx * dx + dy * dy);
+  const pixelDistance = Math.sqrt(dx * dx + dy * dy);
 
-  // Convert pixel distance back to km (approximate)
-  const containerRect = solarSystem.container.getBoundingClientRect();
-  const maxRadius = Math.min(containerRect.width, containerRect.height) * 0.45;
-  const proportion = (distance - 50) / (maxRadius - 50);
+  // Find the closest visible asteroid to use as reference
+  let closestAsteroid = null;
+  let closestDistance = Infinity;
 
+  const asteroidElements = document.querySelectorAll(".asteroid");
+  asteroidElements.forEach((asteroid) => {
+    if (asteroid.style.display === "none") return;
+
+    // Get the asteroid's screen position
+    const asteroidX =
+      parseFloat(asteroid.style.left) + asteroid.offsetWidth / 2;
+    const asteroidY =
+      parseFloat(asteroid.style.top) + asteroid.offsetHeight / 2;
+
+    // Get the ship's screen position (center of screen)
+    const containerRect = solarSystem.container.getBoundingClientRect();
+    const shipX = containerRect.width / 2;
+    const shipY = containerRect.height / 2;
+
+    // Calculate pixel distance between ship and asteroid
+    const dx = shipX - asteroidX;
+    const dy = shipY - asteroidY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+
+    if (distance < closestDistance) {
+      closestDistance = distance;
+      closestAsteroid = asteroid;
+    }
+  });
+
+  // Calculate distance from Earth based on the closest asteroid's actual distance
   let distanceKm = 0;
-  if (proportion > 0) {
-    const { MIN_DISTANCE, MAX_DISTANCE } = solarSystem.constants;
-    const logMin = Math.log10(MIN_DISTANCE + 1);
-    const logMax = Math.log10(MAX_DISTANCE);
-    const logDist = proportion * (logMax - logMin) + logMin;
-    distanceKm = Math.pow(10, logDist) - 1;
+
+  if (closestAsteroid) {
+    // Get the asteroid's actual distance from Earth in km
+    const asteroidDistance = parseFloat(closestAsteroid.dataset.distance);
+
+    // Calculate the ship's distance using the closest asteroid as reference
+    // The closer the ship is to the asteroid visually, the closer it is to the asteroid's actual distance
+    const asteroidOrbitRadius = parseFloat(closestAsteroid.dataset.orbitRadius);
+
+    // Calculate what percentage of the asteroid's orbit radius the ship is at
+    const shipOrbitRatio = pixelDistance / asteroidOrbitRadius;
+
+    // Scale the actual distance accordingly
+    distanceKm = asteroidDistance * shipOrbitRatio;
+  } else {
+    // Fallback to the old calculation if no asteroids are visible
+    const containerRect = solarSystem.container.getBoundingClientRect();
+    const maxRadius =
+      Math.min(containerRect.width, containerRect.height) * 0.45;
+    const proportion = (pixelDistance - 50) / (maxRadius - 50);
+
+    if (proportion > 0) {
+      const { MIN_DISTANCE, MAX_DISTANCE } = solarSystem.constants;
+      const logMin = Math.log10(MIN_DISTANCE + 1);
+      const logMax = Math.log10(MAX_DISTANCE);
+      const logDist = proportion * (logMax - logMin) + logMin;
+      distanceKm = Math.pow(10, logDist) - 1;
+    }
   }
 
   // Update info text
