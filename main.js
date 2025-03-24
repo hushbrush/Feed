@@ -362,8 +362,8 @@ function createOrbits(centerX, centerY) {
 
     // Create planet at random position on its orbit
     const angle = Math.random() * Math.PI * 2;
-    const xPosition = centerX + orbitRadius * Math.cos(angle);
-    const yPosition = centerY + orbitRadius * Math.sin(angle);
+    const xPosition = 0 + orbitRadius * Math.cos(angle);
+    const yPosition = 0 + orbitRadius * Math.sin(angle);
 
     const planetElement = document.createElement("div");
     planetElement.className = "planet";
@@ -837,11 +837,10 @@ function updateInfoPanel() {
   }
 
   // Update info text
-  solarSystem.infoPanel.innerHTML = `
-    <div>Speed: ${solarSystem.ship.speed.toFixed(1)} px/s</div>
-    <div>Distance from Earth: ${(distanceKm / 1000000).toFixed(2)}M km</div>
-    <div>Use arrow keys to navigate</div>
-  `;
+solarSystem.infoPanel.innerHTML = `
+    <h3>Speed: ${solarSystem.ship.speed.toFixed(1)} px/s</h3>
+    <h3>Distance from Earth: ${(distanceKm / 1000000).toFixed(2)}M km</h3>
+`;
 }
 
 // Start the solar system
@@ -886,40 +885,123 @@ function xmlToJson(xml) {
     return obj;
 }
 
-function addResetButton() {
+function addButtons() {
+    // Create and set up the reset button
     const resetButton = document.createElement("button");
-    resetButton.innerHTML = "Reset";
+    resetButton.innerHTML = `<img src="/assets/reset.svg" alt="Reset" width="40" height="40">`;
     resetButton.id = "reset-button";
-  
+
     resetButton.addEventListener("click", () => {
-    //   // Select the container and reset its transform (zoom and pan)
-    //   const container = d3.select("#solar-system");
-    //   const containerRect = container.node().getBoundingClientRect();  // Correct this to work with d3
-    //   const screenCenterX = containerRect.width / 2;
-    //   const screenCenterY = containerRect.height / 2;
-    
-    //   // Calculate camera offset to keep ship centered
-    //   solarSystem.camera.x = solarSystem.ship.x - screenCenterX;
-    //   solarSystem.camera.y = solarSystem.ship.y - screenCenterY;
-
-    //   // Reset to the original state (center and scale)
-    //   container.transition()
-    //     .duration(500) // Optional smooth transition for reset
-    //     .style("transform", `scale(1) translate(${solarSystem.camera.x}px, ${solarSystem.camera.y}px)`); // Reset scale and position with correct template literal
-
-    //   // Reset ship position
-      solarSystem.ship.x = solarSystem.earthPosition.x;
-      solarSystem.ship.y = solarSystem.earthPosition.y;
+        // Reset ship's position to Earth's position
+        solarSystem.ship.x = solarSystem.earthPosition.x;
+        solarSystem.ship.y = solarSystem.earthPosition.y;
+        
+        // Update camera to the new position
         updateCamera(); 
     });
 
-  
     // Append the reset button to the body
     document.body.appendChild(resetButton);
+
+    // Create and set up the zoom toggle button
+    const toggleZoom = document.createElement("button");
+    toggleZoom.innerHTML = "Zoom in/out";
+    toggleZoom.id = "zoom-toggle";
+    
+    let zoomFactor = 1;  // Initial zoom state (zoomed out)
+    
+    toggleZoom.addEventListener("click", () => {
+        console.log("Zoom factor:", zoomFactor);
+    
+        if (zoomFactor === 1) {
+            // Zoom in (change zoom factor to 5)
+            solarSystem.camera.zoomFactor = 5;
+            
+            // Clear previous elements before creating new ones
+            d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
+    
+            createSolarSystem();
+    
+            console.log("Zoomed in, zoom factor:", zoomFactor);
+        } else {
+            // Zoom out (reset zoom factor to 1)
+            solarSystem.camera.zoomFactor = 1;
+            
+            // Clear previous elements before creating new ones
+            d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
+            
+            // Recreate the entire solar system at the zoomed-out level
+            createSolarSystem();
+    
+            console.log("Zoomed out, zoom factor:", zoomFactor);
+        }
+    
+        // Apply the zoom factor with smooth transition
+        const container = d3.select("#solar-system");
+        container.transition()
+            .duration(500) // Smooth transition
+            .style("transform", `scale(${zoomFactor})`); // Apply zoom
+    });
+    
+    // Append the zoom toggle button to the body
+    document.body.appendChild(toggleZoom);
+    
 }
+
 
   
   // Call the function to add the reset button
-  addResetButton();
+  addButtons();
   
+
+  function createLegend() {
+    // Create a container for the legend
+    const legend = d3.select("body").append("div")
+        .attr("id", "legend");
+       
+
+    // Add title to the legend
+    legend.append("h1")
+        .text("Near Earth Objects")
+        .style("text-align", "left-align")
+        .style("margin-bottom", "10px");
+
+    legend.append("h2")
+        .text("Use arrow keys to navigate")
+        .style("text-align", "left-align")
+        .style("margin-bottom", "10px");
+
+    // Define the legend entries (You can modify these based on your requirements)
+    const legendEntries = [
+    
+        { label: "Near Earth Asteroids", color: "white", description: "Safe" },
+        { label: "Sentry Object", color: "#ff4444", description: "Potentially hazardous" },
+        { label: "Planets and satellites", color: "#00ff00", description: "Moon, Mars, Venus, Mercury" }
+    ];
+
+    // Append each legend entry
+    const entry = legend.selectAll(".legend-entry")
+        .data(legendEntries)
+        .enter().append("div")
+        .attr("class", "legend-entry")
+        .style("display", "flex")
+        .style("align-items", "center")
+        .style("margin-bottom", "8px");
+
+    // Add color boxes and labels
+    entry.append("div")
+        .style("width", "20px")
+        .style("height", "20px")
+        .style("background-color", d => d.color)
+        .style("margin-right", "10px")
+        .style("border-radius", "10px");
+
+    // Add labels and descriptions
+    entry.append("h3")
+        .text(d => `${d.label}: ${d.description}`);
+}
+
+// Call the function to create the legend
+createLegend();
+
 
