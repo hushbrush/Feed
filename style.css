@@ -363,3 +363,85 @@ h4 {
 .legend-icon.dangerous {
   background-color: #ff4444;
 }
+
+/* Earth indicator */
+.earth-indicator {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 999;
+  transition: opacity 0.5s ease;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+/* Create a clearer directional arrow */
+.earth-arrow {
+  position: relative;
+  width: 0;
+  height: 0;
+  /* Create a horizontally pointing triangle (pointing right by default) */
+  border-top: 12px solid transparent;
+  border-bottom: 12px solid transparent;
+  border-left: 24px solid rgba(66, 133, 244, 0.9); /* Increased from 20px to 24px for longer point */
+  filter: drop-shadow(0 0 5px rgba(66, 133, 244, 0.8));
+  transform-origin: left center; /* Rotate from the left side (base of triangle) */
+  animation: pulse-earth-glow 2s infinite alternate;
+}
+
+/* Add a "stem" to make the direction even clearer */
+.earth-arrow::after {
+  content: "";
+  position: absolute;
+  left: -22px; /* Adjusted from -18px to -22px to match longer triangle */
+  top: 50%;
+  width: 8px; /* Increased from 6px to 8px */
+  height: 3px;
+  background-color: rgba(66, 133, 244, 1);
+  transform: translateY(-50%);
+  filter: drop-shadow(0 0 5px rgba(66, 133, 244, 0.9));
+  animation: pulse-earth-tip 2s infinite alternate;
+}
+
+/* Add animation for the stem tip */
+@keyframes pulse-earth-tip {
+  0% {
+    width: 8px;
+    filter: drop-shadow(0 0 4px rgba(66, 133, 244, 0.8));
+  }
+  100% {
+    width: 12px;
+    filter: drop-shadow(0 0 10px rgba(66, 133, 244, 1));
+  }
+}
+
+.earth-label {
+  color: rgba(66, 133, 244, 1);
+  font-size: 10px;
+  font-weight: bold;
+  margin-top: 5px;
+  text-shadow: 0 0 3px black;
+  text-align: center;
+  animation: pulse-earth-label 2s infinite alternate;
+}
+
+@keyframes pulse-earth-glow {
+  0% {
+    filter: drop-shadow(0 0 3px rgba(66, 133, 244, 0.6));
+    opacity: 0.7;
+  }
+  100% {
+    filter: drop-shadow(0 0 10px rgba(66, 133, 244, 1));
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-earth-label {
+  0% {
+    opacity: 0.7;
+  }
+  100% {
+    opacity: 1;
+  }
+}

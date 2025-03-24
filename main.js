@@ -42,10 +42,13 @@ const solarSystem = {
     EARTH_SIZE: 60,
     TOOLTIP_DELAY: 500,
     SHIP_ON_EARTH: true, // Start with ship on Earth
+    EARTH_INDICATOR_DISTANCE: 100, // Increased distance of indicator from center of screen
+    EARTH_INDICATOR_SHOW_THRESHOLD: 150, // Distance from Earth at which to show indicator
   },
   tooltip: null,
   infoPanel: null,
   tooltipTimeout: null,
+  earthIndicator: null, // Reference to Earth direction indicator
 };
 
 // Position ship over Earth
@@ -91,6 +94,9 @@ async function initSolarSystem() {
 
   // Set up navigation ship
   setupNavShip();
+
+  // Set up Earth direction indicator
+  createEarthIndicator();
 
   // Set up keyboard controls
   setupControls();
@@ -566,6 +572,9 @@ function gameLoop() {
   updateAsteroids();
   updateElementPositions();
 
+  // Update Earth indicator
+  updateEarthIndicator();
+
   // Update info panel
   updateInfoPanel();
 
@@ -903,9 +912,10 @@ function updateInfoPanel() {
   addButtons();
   // Update info text
   solarSystem.infoPanel.innerHTML = `
-    <h3 style="font-weight: bold; padding-bottom:4px; font-size:18px;">Use Arrows to navigate and explore:</h3>
+    <h3 style="font-weight: bold; padding-bottom:4px; font-size:18px;">Use Arrows to Navigate</h3>
     <h3>Speed: ${solarSystem.ship.speed.toFixed(1)} px/s</h3>
     <h3>Distance from Earth: ${(distanceKm / 1000000).toFixed(2)}M km</h3>
+    <h3>Total Asteroids: ${solarSystem.asteroids.length}</h3>
     
 `;
 }
@@ -952,10 +962,18 @@ function xmlToJson(xml) {
 }
 
 function addButtons() {
-  // Create and set up the reset button
+  // Check if reset button already exists
+  const existingButton = document.getElementById("reset-button");
+  if (existingButton) {
+    // If button already exists, don't create a new one
+    return;
+  }
+
+  // Create and set up the reset button but don't display it
   const resetButton = document.createElement("button");
   resetButton.innerHTML = `<img src="/assets/reset.svg" alt="Reset" width="40" height="40">`;
   resetButton.id = "reset-button";
+  resetButton.style.display = "none"; // Hide the button
 
   resetButton.addEventListener("click", () => {
     // Reset ship's position to Earth's position
@@ -1055,3 +1073,97 @@ function createLegend() {
 
 // Call the function to create the legend
 createLegend();
+
+// Create Earth direction indicator
+function createEarthIndicator() {
+  // Create the indicator element
+  const indicator = document.createElement("div");
+  indicator.className = "earth-indicator";
+
+  // Create arrow element
+  const arrow = document.createElement("div");
+  arrow.className = "earth-arrow";
+
+  // Create label element
+  const label = document.createElement("div");
+  label.className = "earth-label";
+  label.textContent = "EARTH";
+
+  // Add elements to indicator
+  indicator.appendChild(arrow);
+  indicator.appendChild(label);
+
+  // Hide indicator initially (it's only visible when away from Earth)
+  indicator.style.opacity = "0";
+  indicator.style.display = "none"; // Initially hidden completely
+
+  solarSystem.container.appendChild(indicator);
+
+  // Store reference to indicator
+  solarSystem.earthIndicator = indicator;
+}
+
+// Update Earth direction indicator position and visibility
+function updateEarthIndicator() {
+  if (!solarSystem.earthIndicator) return;
+
+  // Only show the indicator if we're not on Earth anymore
+  if (solarSystem.constants.SHIP_ON_EARTH) {
+    solarSystem.earthIndicator.style.opacity = "0";
+    solarSystem.earthIndicator.style.display = "none";
+    return;
+  }
+
+  // Calculate distance from Earth
+  const dx = solarSystem.earthPosition.x - solarSystem.ship.x;
+  const dy = solarSystem.earthPosition.y - solarSystem.ship.y;
+  const distanceFromEarth = Math.sqrt(dx * dx + dy * dy);
+
+  // Only show the indicator if we're far enough from Earth
+  if (
+    distanceFromEarth < solarSystem.constants.EARTH_INDICATOR_SHOW_THRESHOLD
+  ) {
+    solarSystem.earthIndicator.style.opacity = "0";
+    solarSystem.earthIndicator.style.display = "none";
+    return;
+  }
+
+  // Make sure indicator is displayed
+  solarSystem.earthIndicator.style.display = "flex";
+
+  // Calculate direction to Earth (from ship to Earth, not the other way around)
+  // Use atan2 to get the angle in radians, then convert to degrees
+  // Note: atan2 takes (y, x) as arguments, not (x, y)
+  const angleToEarth = Math.atan2(dy, dx) * (180 / Math.PI);
+
+  // Position the indicator around the center of the screen (where the ship is)
+  const containerRect = solarSystem.container.getBoundingClientRect();
+  const screenCenterX = containerRect.width / 2;
+  const screenCenterY = containerRect.height / 2;
+
+  // Calculate position on the edge of a circle around the ship
+  const indicatorDistance = solarSystem.constants.EARTH_INDICATOR_DISTANCE;
+
+  // Calculate position using the angle to Earth
+  const indicatorX =
+    screenCenterX +
+    Math.cos((angleToEarth * Math.PI) / 180) * indicatorDistance;
+  const indicatorY =
+    screenCenterY +
+    Math.sin((angleToEarth * Math.PI) / 180) * indicatorDistance;
+
+  // Update indicator position
+  solarSystem.earthIndicator.style.left = `${indicatorX}px`;
+  solarSystem.earthIndicator.style.top = `${indicatorY}px`;
+
+  // Get the arrow element
+  const arrow = solarSystem.earthIndicator.querySelector(".earth-arrow");
+
+  // With our new arrow design, the point is at the right side (horizontal)
+  // The rotation should be set to the angle to Earth directly
+  arrow.style.transform = `rotate(${angleToEarth}deg)`;
+
+  // Make indicator visible with subtle distance-based opacity
+  const opacityFactor = Math.min(1, distanceFromEarth / 1000);
+  solarSystem.earthIndicator.style.opacity = 0.5 + opacityFactor * 0.5;
+}
