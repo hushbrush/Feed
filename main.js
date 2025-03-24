@@ -92,6 +92,7 @@ async function initSolarSystem() {
   // Set up navigation ship
   setupNavShip();
 
+
   // Set up keyboard controls
   setupControls();
 
@@ -521,14 +522,14 @@ function distanceToPixels(distance) {
 
 // Show tooltip with information
 function showTooltip(element, text, x, y) {
-  clearTimeout(solarSystem.tooltipTimeout);
+    clearTimeout(solarSystem.tooltipTimeout);
 
-  solarSystem.tooltipTimeout = setTimeout(() => {
-    solarSystem.tooltip.textContent = text;
-    solarSystem.tooltip.style.left = `${x}px`;
-    solarSystem.tooltip.style.top = `${y}px`;
-    solarSystem.tooltip.style.opacity = "1";
-  }, solarSystem.constants.TOOLTIP_DELAY);
+    solarSystem.tooltipTimeout = setTimeout(() => {
+        solarSystem.tooltip.innerHTML = `<h4>${text}</h4>`;
+        solarSystem.tooltip.style.left = `${x}px`;
+        solarSystem.tooltip.style.top = `${y}px`;
+        solarSystem.tooltip.style.opacity = "1";
+    }, solarSystem.constants.TOOLTIP_DELAY);
 }
 
 // Hide tooltip
@@ -835,11 +836,13 @@ function updateInfoPanel() {
       distanceKm = Math.pow(10, logDist) - 1;
     }
   }
-
+  addButtons();
   // Update info text
 solarSystem.infoPanel.innerHTML = `
+    <h3 style="font-weight: bold; font-size:18px;">Use Arrows to navigate and explore:</h3>
     <h3>Speed: ${solarSystem.ship.speed.toFixed(1)} px/s</h3>
     <h3>Distance from Earth: ${(distanceKm / 1000000).toFixed(2)}M km</h3>
+    
 `;
 }
 
@@ -903,55 +906,57 @@ function addButtons() {
     // Append the reset button to the body
     document.body.appendChild(resetButton);
 
-    // Create and set up the zoom toggle button
-    const toggleZoom = document.createElement("button");
-    toggleZoom.innerHTML = "Zoom in/out";
-    toggleZoom.id = "zoom-toggle";
+    //this is half-balked code for the zoom button:
+
+    // // Create and set up the zoom toggle button
+    // const toggleZoom = document.createElement("button");
+    // toggleZoom.innerHTML = "Zoom in/out";
+    // toggleZoom.id = "zoom-toggle";
     
-    let zoomFactor = 1;  // Initial zoom state (zoomed out)
+    // let zoomFactor = 1;  // Initial zoom state (zoomed out)
     
-    toggleZoom.addEventListener("click", () => {
-        console.log("Zoom factor:", zoomFactor);
+    // toggleZoom.addEventListener("click", () => {
+    //     console.log("Zoom factor:", zoomFactor);
     
-        if (zoomFactor === 1) {
-            // Zoom in (change zoom factor to 5)
-            solarSystem.camera.zoomFactor = 5;
+    //     if (zoomFactor === 1) {
+    //         // Zoom in (change zoom factor to 5)
+    //         solarSystem.camera.zoomFactor = 5;
             
-            // Clear previous elements before creating new ones
-            d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
+    //         // Clear previous elements before creating new ones
+    //         d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
     
-            createSolarSystem();
+    //         createSolarSystem();
     
-            console.log("Zoomed in, zoom factor:", zoomFactor);
-        } else {
-            // Zoom out (reset zoom factor to 1)
-            solarSystem.camera.zoomFactor = 1;
+    //         console.log("Zoomed in, zoom factor:", zoomFactor);
+    //     } else {
+    //         // Zoom out (reset zoom factor to 1)
+    //         solarSystem.camera.zoomFactor = 1;
             
-            // Clear previous elements before creating new ones
-            d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
+    //         // Clear previous elements before creating new ones
+    //         d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
             
-            // Recreate the entire solar system at the zoomed-out level
-            createSolarSystem();
+    //         // Recreate the entire solar system at the zoomed-out level
+    //         createSolarSystem();
     
-            console.log("Zoomed out, zoom factor:", zoomFactor);
-        }
+    //         console.log("Zoomed out, zoom factor:", zoomFactor);
+    //     }
     
-        // Apply the zoom factor with smooth transition
-        const container = d3.select("#solar-system");
-        container.transition()
-            .duration(500) // Smooth transition
-            .style("transform", `scale(${zoomFactor})`); // Apply zoom
-    });
+    //     // Apply the zoom factor with smooth transition
+    //     const container = d3.select("#solar-system");
+    //     container.transition()
+    //         .duration(500) // Smooth transition
+    //         .style("transform", `scale(${zoomFactor})`); // Apply zoom
+    // });
     
-    // Append the zoom toggle button to the body
-    document.body.appendChild(toggleZoom);
+    // // Append the zoom toggle button to the body
+    // document.body.appendChild(toggleZoom);
     
 }
 
 
   
   // Call the function to add the reset button
-  addButtons();
+
   
 
   function createLegend() {
@@ -962,14 +967,19 @@ function addButtons() {
 
     // Add title to the legend
     legend.append("h1")
-        .text("Near Earth Objects")
+        .text("Rock-et Science: Near Earth Objects")
         .style("text-align", "left-align")
         .style("margin-bottom", "10px");
 
     legend.append("h2")
-        .text("Use arrow keys to navigate")
+        .text("A speculative map of near Earth objects using the ")
         .style("text-align", "left-align")
-        .style("margin-bottom", "10px");
+        .style("margin-bottom", "10px")
+        .append("a")
+        .attr("href", "https://api.nasa.gov/neo/rest/v1/feed?start_date=2015-09-07&end_date=2015-09-08&api_key=DEMO_KEY")
+        .attr("target", "_blank")
+        .style("color", "lightblue")
+        .text("NASA API");
 
     // Define the legend entries (You can modify these based on your requirements)
     const legendEntries = [
@@ -997,8 +1007,9 @@ function addButtons() {
         .style("border-radius", "10px");
 
     // Add labels and descriptions
+
     entry.append("h3")
-        .text(d => `${d.label}: ${d.description}`);
+        .text(d => `${d.label}`);
 }
 
 // Call the function to create the legend
