@@ -971,9 +971,9 @@ function addButtons() {
 
   // Create and set up the reset button but don't display it
   const resetButton = document.createElement("button");
-  resetButton.innerHTML = `<img src="/assets/reset.svg" alt="Reset" width="40" height="40">`;
+  resetButton.innerHTML = `<img src="/assets/reset.svg" alt="Reset" width="23" height="20">`;
   resetButton.id = "reset-button";
-  resetButton.style.display = "none"; // Hide the button
+  // resetButton.style.display = "none"; // Hide the button
 
   resetButton.addEventListener("click", () => {
     // Reset ship's position to Earth's position
@@ -1189,7 +1189,7 @@ function createEarthIndicator() {
   // Create label element
   const label = document.createElement("div");
   label.className = "earth-label";
-  label.textContent = "EARTH";
+  label.textContent = "EARTH DIRECTION";
 
   // Add elements to indicator
   indicator.appendChild(arrow);
