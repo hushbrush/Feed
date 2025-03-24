@@ -129,21 +129,62 @@ async function loadPlanetsData() {
     throw error;
   }
 }
+async function fetchAllData() {
+    const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
+
+    // Correct API call: Fetch only today’s data
+    const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API.asteroid}`;
+
+    try {
+        const response = await fetch(asteroidUrl);
+        const newData = await response.json();
+
+        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+        // Prevent redundant updates
+        if (JSON.stringify(newData) !== JSON.stringify(previousData)) {
+            
+            previousData = newData; // Store the latest data
+            display_asteroids(newData, today);
+        } else {
+            console.log("No new asteroid data, skipping update.");
+        }
+    } catch (error) {
+        console.error("Error fetching asteroid data:", error);
+    } finally {
+        setTimeout(fetchAllData, 300000); // Fetch again in 5 minutes
+    }
+}
+
 
 // Load asteroid data
+let previousData = null;
+
 async function loadAsteroidData() {
+  const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
+
+  // Correct API call: Fetch only today’s data
+  const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API.asteroid}`;
+
   try {
-    const response = await fetch("asteroid-data-2025-03-23.json");
-    const data = await response.json();
-    solarSystem.asteroids = data;
-    console.log(
-      "Asteroid data loaded:",
-      solarSystem.asteroids.length,
-      "asteroids"
-    );
+    const response = await fetch(asteroidUrl);
+    const newData = await response.json();
+
+    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+    // Prevent redundant updates
+    if (JSON.stringify(newData) !== JSON.stringify(previousData)) {
+      
+      previousData = newData; // Store the latest data
+      solarSystem.asteroids = newData.near_earth_objects[today];
+      console.log("Asteroids data loaded:", solarSystem.asteroids);
+    } else {
+      console.log("No new asteroid data, skipping update.");
+    }
   } catch (error) {
-    console.error("Error loading asteroid data:", error);
-    throw error;
+    console.error("Error fetching asteroid data:", error);
+  } finally {
+    setTimeout(loadAsteroidData, 300000); // Fetch again in 5 minutes
   }
 }
 
@@ -357,6 +398,7 @@ function createOrbits(centerX, centerY) {
 // Create asteroids on their orbits
 function createAsteroids(centerX, centerY) {
   solarSystem.asteroids.forEach((asteroid) => {
+    
     const missDistance = parseFloat(
       asteroid.close_approach_data[0].miss_distance.kilometers
     );
@@ -366,12 +408,9 @@ function createAsteroids(centerX, centerY) {
 
     const orbitRadius = distanceToPixels(missDistance);
 
-    // Set the diameter in pixels based on the minimum estimated diameter in meters
-    // Scale to approximately half size (divide by 2)
-    // Add constraints to keep sizes reasonable for visualization
-    // Minimum size of 2px so even small asteroids are visible
-    // Maximum size of 25px to prevent giant asteroids from dominating the view
-    const minSizeMeters = asteroid.estimated_diameter_meters.min;
+    
+    const minSizeMeters = asteroid.estimated_diameter.meters.estimated_diameter_min;
+    console.log(minSizeMeters);
     const diameterInPixels = Math.max(2, Math.min(25, minSizeMeters / 2));
 
     // Get velocity in km/s for tooltip display
@@ -804,3 +843,44 @@ function updateInfoPanel() {
 
 // Start the solar system
 document.addEventListener("DOMContentLoaded", initSolarSystem);
+
+
+
+function xmlToJson(xml) {
+    let obj = {};
+
+    // Check if XML is an element node (i.e., not text)
+    if (xml.nodeType === 1) { 
+        // If the element has attributes, add them to the JSON object
+        if (xml.attributes.length > 0) {
+            obj["@attributes"] = {};
+            for (let i = 0; i < xml.attributes.length; i++) {
+                const attribute = xml.attributes.item(i);
+                obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
+            }
+        }
+    } else if (xml.nodeType === 3) { // Text node
+        obj = xml.nodeValue;
+    }
+
+    // Process child nodes (recursively)
+    if (xml.hasChildNodes()) {
+        for (let i = 0; i < xml.childNodes.length; i++) {
+            const item = xml.childNodes.item(i);
+            const nodeName = item.nodeName;
+            if (typeof obj[nodeName] === "undefined") {
+                obj[nodeName] = xmlToJson(item);  // Recursively process children
+            } else {
+                if (typeof obj[nodeName].push === "undefined") {
+                    const old = obj[nodeName];
+                    obj[nodeName] = [];
+                    obj[nodeName].push(old);
+                }
+                obj[nodeName].push(xmlToJson(item));  // Push multiple elements of the same name
+            }
+        }
+    }
+    return obj;
+}
+
+
