@@ -839,7 +839,7 @@ function updateInfoPanel() {
   addButtons();
   // Update info text
 solarSystem.infoPanel.innerHTML = `
-    <h3 style="font-weight: bold; font-size:18px;">Use Arrows to navigate and explore:</h3>
+    <h3 style="font-weight: bold; padding-bottom:4px; font-size:18px;">Use Arrows to navigate and explore:</h3>
     <h3>Speed: ${solarSystem.ship.speed.toFixed(1)} px/s</h3>
     <h3>Distance from Earth: ${(distanceKm / 1000000).toFixed(2)}M km</h3>
     
@@ -996,7 +996,7 @@ function addButtons() {
         .attr("class", "legend-entry")
         .style("display", "flex")
         .style("align-items", "center")
-        .style("margin-bottom", "8px");
+        .style("margin-bottom", "0px");
 
     // Add color boxes and labels
     entry.append("div")
