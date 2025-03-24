@@ -987,6 +987,108 @@ function addButtons() {
   // Append the reset button to the body
   document.body.appendChild(resetButton);
 
+  // Create and set up the info toggle button
+  const infoButton = document.createElement("button");
+  infoButton.innerHTML = `<img src="/assets/info-off.svg" alt="Info" width="32" height="32">`;
+  infoButton.id = "info-button";
+  infoButton.className = "info-toggle";
+  infoButton.setAttribute("aria-label", "Toggle legend");
+
+  // Create the legend container element
+  const legendContainer = document.createElement("div");
+  legendContainer.id = "legend-container";
+  legendContainer.className = "legend-popup";
+  legendContainer.style.display = "none";
+
+  // Add the legend SVG to the container
+  const legendImg = document.createElement("img");
+  legendImg.src = "/assets/legend.svg";
+  legendImg.alt = "Legend information";
+  legendImg.style.width = "100%";
+  legendImg.style.height = "100%";
+  legendContainer.appendChild(legendImg);
+
+  // Add the container to the body
+  document.body.appendChild(legendContainer);
+
+  // Toggle state for the info button
+  let legendVisible = false;
+
+  // Info button click handler
+  infoButton.addEventListener("click", (e) => {
+    e.stopPropagation(); // Prevent the document click from immediately hiding it
+    legendVisible = !legendVisible;
+
+    if (legendVisible) {
+      // Show legend and change button image
+      legendContainer.style.display = "block";
+      infoButton.innerHTML = `<img src="/assets/info-on.svg" alt="Info" width="32" height="32">`;
+    } else {
+      // Hide legend and change button image back
+      legendContainer.style.display = "none";
+      infoButton.innerHTML = `<img src="/assets/info-off.svg" alt="Info" width="32" height="32">`;
+    }
+  });
+
+  // Prevent closing when clicking inside the legend
+  legendContainer.addEventListener("click", (e) => {
+    e.stopPropagation();
+  });
+
+  // Close legend when clicking outside of it
+  document.addEventListener("click", (e) => {
+    if (
+      legendVisible &&
+      e.target !== infoButton &&
+      !infoButton.contains(e.target) &&
+      e.target !== legendContainer &&
+      !legendContainer.contains(e.target)
+    ) {
+      legendVisible = false;
+      legendContainer.style.display = "none";
+      infoButton.innerHTML = `<img src="/assets/info-off.svg" alt="Info" width="32" height="32">`;
+    }
+  });
+
+  // Append the info button
+  document.body.appendChild(infoButton);
+
+  // Create a container for the legend
+  const legendEntries = document.createElement("div");
+  legendEntries.id = "legend";
+  document.body.appendChild(legendEntries);
+
+  // Define the legend entries
+  const entries = [
+    { label: "ASTEROID", color: "white" },
+    { label: "POTENTIALLY DANGEROUS", color: "#ff4444" },
+  ];
+
+  // Create each legend entry
+  entries.forEach((entry) => {
+    // Create entry container
+    const entryDiv = document.createElement("div");
+    entryDiv.className = "legend-entry";
+
+    // Add label
+    const label = document.createElement("h3");
+    label.textContent = entry.label;
+    entryDiv.appendChild(label);
+
+    // Add color dot
+    const dot = document.createElement("div");
+    dot.className = "legend-icon";
+    dot.style.width = "12px";
+    dot.style.height = "12px";
+    dot.style.backgroundColor = entry.color;
+    dot.style.marginLeft = "8px";
+    dot.style.borderRadius = "50%";
+    entryDiv.appendChild(dot);
+
+    // Add to legend
+    legendEntries.appendChild(entryDiv);
+  });
+
   //this is half-balked code for the zoom button:
 
   // // Create and set up the zoom toggle button
@@ -1071,8 +1173,8 @@ function createLegend() {
     .style("border-radius", "50%");
 }
 
-// Call the function to create the legend
-createLegend();
+// We're replacing the previous legend with our SVG-based one
+// createLegend();
 
 // Create Earth direction indicator
 function createEarthIndicator() {

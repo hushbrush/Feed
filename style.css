@@ -445,3 +445,53 @@ h4 {
     opacity: 1;
   }
 }
+
+/* Info button */
+.info-toggle {
+  position: absolute;
+  bottom: 90px;
+  right: 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  z-index: 1100;
+  padding: 8px;
+  transition: transform 0.2s ease;
+}
+
+.info-toggle:hover {
+  transform: scale(1.1);
+}
+
+.info-toggle:active {
+  transform: scale(0.95);
+}
+
+/* Legend popup */
+.legend-popup {
+  position: absolute;
+  bottom: 130px;
+  right: 20px;
+  background-color: rgba(0, 0, 0, 0.9);
+  border: none;
+  border-radius: 10px;
+  padding: 10px;
+  z-index: 1050;
+  max-width: 450px;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 0 25px rgba(0, 0, 0, 0.8);
+  animation: fadeIn 0.3s ease-in-out;
+  backdrop-filter: blur(5px);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
