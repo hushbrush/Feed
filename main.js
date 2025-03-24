@@ -92,7 +92,6 @@ async function initSolarSystem() {
   // Set up navigation ship
   setupNavShip();
 
-
   // Set up keyboard controls
   setupControls();
 
@@ -131,40 +130,9 @@ async function loadPlanetsData() {
   }
 }
 async function fetchAllData() {
-    const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
+  const today = new Date().toISOString().split("T")[0]; // Get YYYY-MM-DD
 
-    // Correct API call: Fetch only today’s data
-    const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API.asteroid}`;
-
-    try {
-        const response = await fetch(asteroidUrl);
-        const newData = await response.json();
-
-        if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
-
-        // Prevent redundant updates
-        if (JSON.stringify(newData) !== JSON.stringify(previousData)) {
-            
-            previousData = newData; // Store the latest data
-            display_asteroids(newData, today);
-        } else {
-            console.log("No new asteroid data, skipping update.");
-        }
-    } catch (error) {
-        console.error("Error fetching asteroid data:", error);
-    } finally {
-        setTimeout(fetchAllData, 300000); // Fetch again in 5 minutes
-    }
-}
-
-
-// Load asteroid data
-let previousData = null;
-
-async function loadAsteroidData() {
-  const today = new Date().toISOString().split('T')[0]; // Get YYYY-MM-DD
-
-  // Correct API call: Fetch only today’s data
+  // Correct API call: Fetch only today's data
   const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API.asteroid}`;
 
   try {
@@ -175,7 +143,35 @@ async function loadAsteroidData() {
 
     // Prevent redundant updates
     if (JSON.stringify(newData) !== JSON.stringify(previousData)) {
-      
+      previousData = newData; // Store the latest data
+      display_asteroids(newData, today);
+    } else {
+      console.log("No new asteroid data, skipping update.");
+    }
+  } catch (error) {
+    console.error("Error fetching asteroid data:", error);
+  } finally {
+    setTimeout(fetchAllData, 300000); // Fetch again in 5 minutes
+  }
+}
+
+// Load asteroid data
+let previousData = null;
+
+async function loadAsteroidData() {
+  const today = new Date().toISOString().split("T")[0]; // Get YYYY-MM-DD
+
+  // Correct API call: Fetch only today's data
+  const asteroidUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${today}&end_date=${today}&api_key=${API.asteroid}`;
+
+  try {
+    const response = await fetch(asteroidUrl);
+    const newData = await response.json();
+
+    if (!response.ok) throw new Error(`API Error: ${response.statusText}`);
+
+    // Prevent redundant updates
+    if (JSON.stringify(newData) !== JSON.stringify(previousData)) {
       previousData = newData; // Store the latest data
       solarSystem.asteroids = newData.near_earth_objects[today];
       console.log("Asteroids data loaded:", solarSystem.asteroids);
@@ -305,17 +301,7 @@ function createOrbits(centerX, centerY) {
   // Calculate orbit sizes based on asteroid and planet distances
   const distances = new Set();
 
-  // Add asteroid distances
-  solarSystem.asteroids.forEach((asteroid) => {
-    const distance = parseFloat(
-      asteroid.close_approach_data[0].miss_distance.kilometers
-    );
-    if (distance <= solarSystem.constants.MAX_DISTANCE) {
-      distances.add(distance);
-    }
-  });
-
-  // Add planet distances
+  // Add planet distances only - asteroids now have their own non-circular paths
   solarSystem.planets.forEach((planet) => {
     if (
       planet.name !== "Earth" &&
@@ -396,12 +382,11 @@ function createOrbits(centerX, centerY) {
   });
 }
 function getRandomSize(maxSizeMeters, minSizeMeters) {
-    return Math.random() * (maxSizeMeters - minSizeMeters) + minSizeMeters;
+  return Math.random() * (maxSizeMeters - minSizeMeters) + minSizeMeters;
 }
 // Create asteroids on their orbits
 function createAsteroids(centerX, centerY) {
   solarSystem.asteroids.forEach((asteroid) => {
-    
     const missDistance = parseFloat(
       asteroid.close_approach_data[0].miss_distance.kilometers
     );
@@ -411,11 +396,12 @@ function createAsteroids(centerX, centerY) {
 
     const orbitRadius = distanceToPixels(missDistance);
 
-    
-    const minSizeMeters = asteroid.estimated_diameter.meters.estimated_diameter_min;
-    const maxSizeMeters = asteroid.estimated_diameter.meters.estimated_diameter_max;
+    const minSizeMeters =
+      asteroid.estimated_diameter.meters.estimated_diameter_min;
+    const maxSizeMeters =
+      asteroid.estimated_diameter.meters.estimated_diameter_max;
 
-    const diameterInPixels = Math.max(2, Math.min(25, (minSizeMeters)/ 2));
+    const diameterInPixels = Math.max(2, Math.min(25, minSizeMeters / 2));
 
     // Get velocity in km/s for tooltip display
     const velocityKmS = parseFloat(
@@ -437,6 +423,27 @@ function createAsteroids(centerX, centerY) {
     asteroidElement.style.width = `${diameterInPixels}px`;
     asteroidElement.style.height = `${diameterInPixels}px`;
 
+    // Create a trailing gradient to show path
+    const tailElement = document.createElement("div");
+    tailElement.className = "asteroid-tail";
+    // Calculate tail length based on velocity (faster = longer tail)
+    const tailLengthFactor = Math.min(1, velocityKmS / 50); // Normalize velocity to 0-1 range with higher factor
+    const tailLength = 30 + tailLengthFactor * 120; // Scale to 30-150px for more dramatic tails
+    tailElement.style.width = `${tailLength}px`;
+    // Add sentry class if it's a sentry object
+    if (asteroid.is_sentry_object === true) {
+      tailElement.classList.add("sentry-tail");
+    }
+    // Append the tail first so it appears behind the asteroid
+    solarSystem.container.appendChild(tailElement);
+
+    // Generate random orbit offset for non-circular paths
+    // This creates an elliptical/irregular orbit instead of a perfect circle
+    const orbitCenterOffsetX =
+      Math.random() * (orbitRadius * 0.4) - orbitRadius * 0.2;
+    const orbitCenterOffsetY =
+      Math.random() * (orbitRadius * 0.4) - orbitRadius * 0.2;
+
     // Store asteroid data for animation
     asteroidElement.dataset.name = asteroid.name;
     asteroidElement.dataset.distance = missDistance;
@@ -447,6 +454,11 @@ function createAsteroids(centerX, centerY) {
     asteroidElement.dataset.diameter = diameterInPixels;
     asteroidElement.dataset.actualDiameter = minSizeMeters; // Store actual size for tooltip
     asteroidElement.dataset.isSentry = asteroid.is_sentry_object; // Store sentry status
+    asteroidElement.dataset.tailId = tailElement.id =
+      "tail-" + Math.random().toString(36).substr(2, 9);
+    asteroidElement.dataset.tailLength = tailLength;
+    asteroidElement.dataset.orbitOffsetX = orbitCenterOffsetX;
+    asteroidElement.dataset.orbitOffsetY = orbitCenterOffsetY;
 
     // Create permanent tooltip for the asteroid with more information
     const tooltipElement = document.createElement("div");
@@ -481,9 +493,11 @@ function createAsteroids(centerX, centerY) {
     const angle = dayProgress * 2 * Math.PI;
     asteroidElement.dataset.angle = angle;
 
-    // Calculate position
-    const xPosition = centerX + orbitRadius * Math.cos(angle);
-    const yPosition = centerY + orbitRadius * Math.sin(angle);
+    // Calculate position using the offset center (for non-circular path)
+    const xPosition =
+      centerX + orbitCenterOffsetX + orbitRadius * Math.cos(angle);
+    const yPosition =
+      centerY + orbitCenterOffsetY + orbitRadius * Math.sin(angle);
 
     // Set position
     asteroidElement.style.left = `${xPosition - diameterInPixels / 2}px`;
@@ -522,14 +536,14 @@ function distanceToPixels(distance) {
 
 // Show tooltip with information
 function showTooltip(element, text, x, y) {
-    clearTimeout(solarSystem.tooltipTimeout);
+  clearTimeout(solarSystem.tooltipTimeout);
 
-    solarSystem.tooltipTimeout = setTimeout(() => {
-        solarSystem.tooltip.innerHTML = `<h4>${text}</h4>`;
-        solarSystem.tooltip.style.left = `${x}px`;
-        solarSystem.tooltip.style.top = `${y}px`;
-        solarSystem.tooltip.style.opacity = "1";
-    }, solarSystem.constants.TOOLTIP_DELAY);
+  solarSystem.tooltipTimeout = setTimeout(() => {
+    solarSystem.tooltip.innerHTML = `<h4>${text}</h4>`;
+    solarSystem.tooltip.style.left = `${x}px`;
+    solarSystem.tooltip.style.top = `${y}px`;
+    solarSystem.tooltip.style.opacity = "1";
+  }, solarSystem.constants.TOOLTIP_DELAY);
 }
 
 // Hide tooltip
@@ -649,15 +663,20 @@ function updateAsteroids() {
     const centerY = parseFloat(asteroidElement.dataset.centerY);
     const diameter = parseFloat(asteroidElement.dataset.diameter);
     const velocity = parseFloat(asteroidElement.dataset.velocity);
+    const orbitOffsetX = parseFloat(asteroidElement.dataset.orbitOffsetX || 0);
+    const orbitOffsetY = parseFloat(asteroidElement.dataset.orbitOffsetY || 0);
+    const tailId = asteroidElement.dataset.tailId;
+    const tailLength = parseFloat(asteroidElement.dataset.tailLength || 30);
+    const velocityKmS = parseFloat(asteroidElement.dataset.velocityKmS || 20);
 
     // Update angle
     let angle = parseFloat(asteroidElement.dataset.angle);
     angle = (angle + velocity) % (Math.PI * 2);
     asteroidElement.dataset.angle = angle;
 
-    // Calculate new position
-    const xPosition = centerX + orbitRadius * Math.cos(angle);
-    const yPosition = centerY + orbitRadius * Math.sin(angle);
+    // Calculate new position with offset center (for non-circular paths)
+    const xPosition = centerX + orbitOffsetX + orbitRadius * Math.cos(angle);
+    const yPosition = centerY + orbitOffsetY + orbitRadius * Math.sin(angle);
 
     // Apply camera offset
     const screenX = xPosition - solarSystem.camera.x;
@@ -676,6 +695,45 @@ function updateAsteroids() {
       asteroidElement.style.left = `${screenX - diameter / 2}px`;
       asteroidElement.style.top = `${screenY - diameter / 2}px`;
 
+      // Update tail position and rotation
+      const tail = document.getElementById(tailId);
+      if (tail) {
+        tail.style.display = "block";
+
+        // Calculate movement direction to position tail correctly
+        // Look back along the path by several steps to create a curved tail effect
+        const prevAngles = [];
+        const steps = 5; // Number of steps to look back
+
+        for (let i = 1; i <= steps; i++) {
+          // Look ahead in direction of motion for tail positioning
+          const lookAheadAngle = (angle + velocity * i * 3) % (Math.PI * 2);
+          prevAngles.push(lookAheadAngle);
+        }
+
+        // Calculate the future position for tail direction
+        const futureX =
+          centerX + orbitOffsetX + orbitRadius * Math.cos(prevAngles[0]);
+        const futureY =
+          centerY + orbitOffsetY + orbitRadius * Math.sin(prevAngles[0]);
+
+        // Calculate rotation angle for the tail (point in direction of movement)
+        const dx = futureX - xPosition;
+        const dy = futureY - yPosition;
+        const tailAngle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+        // Position tail at the asteroid's position
+        tail.style.left = `${screenX}px`;
+        tail.style.top = `${screenY}px`;
+
+        // Set tail width based on velocity
+        tail.style.width = `${tailLength}px`;
+        // Align the tail to trail behind the asteroid (opposite of movement direction)
+        tail.style.transform = `translate(0, -50%) rotate(${
+          tailAngle + 180
+        }deg)`;
+      }
+
       // Update permanent tooltip position - position it to the right of the asteroid
       const tooltip = document.querySelector(
         `.permanent-tooltip[data-tooltip-for="${asteroidElement.id}"]`
@@ -692,6 +750,12 @@ function updateAsteroids() {
       }
     } else {
       asteroidElement.style.display = "none";
+
+      // Hide tail when asteroid is not visible
+      const tail = document.getElementById(tailId);
+      if (tail) {
+        tail.style.display = "none";
+      }
 
       // Hide tooltip when asteroid is not visible
       const tooltip = document.querySelector(
@@ -838,7 +902,7 @@ function updateInfoPanel() {
   }
   addButtons();
   // Update info text
-solarSystem.infoPanel.innerHTML = `
+  solarSystem.infoPanel.innerHTML = `
     <h3 style="font-weight: bold; padding-bottom:4px; font-size:18px;">Use Arrows to navigate and explore:</h3>
     <h3>Speed: ${solarSystem.ship.speed.toFixed(1)} px/s</h3>
     <h3>Distance from Earth: ${(distanceKm / 1000000).toFixed(2)}M km</h3>
@@ -849,170 +913,174 @@ solarSystem.infoPanel.innerHTML = `
 // Start the solar system
 document.addEventListener("DOMContentLoaded", initSolarSystem);
 
-
-
 function xmlToJson(xml) {
-    let obj = {};
+  let obj = {};
 
-    // Check if XML is an element node (i.e., not text)
-    if (xml.nodeType === 1) { 
-        // If the element has attributes, add them to the JSON object
-        if (xml.attributes.length > 0) {
-            obj["@attributes"] = {};
-            for (let i = 0; i < xml.attributes.length; i++) {
-                const attribute = xml.attributes.item(i);
-                obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
-            }
-        }
-    } else if (xml.nodeType === 3) { // Text node
-        obj = xml.nodeValue;
+  // Check if XML is an element node (i.e., not text)
+  if (xml.nodeType === 1) {
+    // If the element has attributes, add them to the JSON object
+    if (xml.attributes.length > 0) {
+      obj["@attributes"] = {};
+      for (let i = 0; i < xml.attributes.length; i++) {
+        const attribute = xml.attributes.item(i);
+        obj["@attributes"][attribute.nodeName] = attribute.nodeValue;
+      }
     }
+  } else if (xml.nodeType === 3) {
+    // Text node
+    obj = xml.nodeValue;
+  }
 
-    // Process child nodes (recursively)
-    if (xml.hasChildNodes()) {
-        for (let i = 0; i < xml.childNodes.length; i++) {
-            const item = xml.childNodes.item(i);
-            const nodeName = item.nodeName;
-            if (typeof obj[nodeName] === "undefined") {
-                obj[nodeName] = xmlToJson(item);  // Recursively process children
-            } else {
-                if (typeof obj[nodeName].push === "undefined") {
-                    const old = obj[nodeName];
-                    obj[nodeName] = [];
-                    obj[nodeName].push(old);
-                }
-                obj[nodeName].push(xmlToJson(item));  // Push multiple elements of the same name
-            }
+  // Process child nodes (recursively)
+  if (xml.hasChildNodes()) {
+    for (let i = 0; i < xml.childNodes.length; i++) {
+      const item = xml.childNodes.item(i);
+      const nodeName = item.nodeName;
+      if (typeof obj[nodeName] === "undefined") {
+        obj[nodeName] = xmlToJson(item); // Recursively process children
+      } else {
+        if (typeof obj[nodeName].push === "undefined") {
+          const old = obj[nodeName];
+          obj[nodeName] = [];
+          obj[nodeName].push(old);
         }
+        obj[nodeName].push(xmlToJson(item)); // Push multiple elements of the same name
+      }
     }
-    return obj;
+  }
+  return obj;
 }
 
 function addButtons() {
-    // Create and set up the reset button
-    const resetButton = document.createElement("button");
-    resetButton.innerHTML = `<img src="/assets/reset.svg" alt="Reset" width="40" height="40">`;
-    resetButton.id = "reset-button";
+  // Create and set up the reset button
+  const resetButton = document.createElement("button");
+  resetButton.innerHTML = `<img src="/assets/reset.svg" alt="Reset" width="40" height="40">`;
+  resetButton.id = "reset-button";
 
-    resetButton.addEventListener("click", () => {
-        // Reset ship's position to Earth's position
-        solarSystem.ship.x = solarSystem.earthPosition.x;
-        solarSystem.ship.y = solarSystem.earthPosition.y;
-        
-        // Update camera to the new position
-        updateCamera(); 
-    });
+  resetButton.addEventListener("click", () => {
+    // Reset ship's position to Earth's position
+    solarSystem.ship.x = solarSystem.earthPosition.x;
+    solarSystem.ship.y = solarSystem.earthPosition.y;
 
-    // Append the reset button to the body
-    document.body.appendChild(resetButton);
+    // Update camera to the new position
+    updateCamera();
+  });
 
-    //this is half-balked code for the zoom button:
+  // Append the reset button to the body
+  document.body.appendChild(resetButton);
 
-    // // Create and set up the zoom toggle button
-    // const toggleZoom = document.createElement("button");
-    // toggleZoom.innerHTML = "Zoom in/out";
-    // toggleZoom.id = "zoom-toggle";
-    
-    // let zoomFactor = 1;  // Initial zoom state (zoomed out)
-    
-    // toggleZoom.addEventListener("click", () => {
-    //     console.log("Zoom factor:", zoomFactor);
-    
-    //     if (zoomFactor === 1) {
-    //         // Zoom in (change zoom factor to 5)
-    //         solarSystem.camera.zoomFactor = 5;
-            
-    //         // Clear previous elements before creating new ones
-    //         d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
-    
-    //         createSolarSystem();
-    
-    //         console.log("Zoomed in, zoom factor:", zoomFactor);
-    //     } else {
-    //         // Zoom out (reset zoom factor to 1)
-    //         solarSystem.camera.zoomFactor = 1;
-            
-    //         // Clear previous elements before creating new ones
-    //         d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
-            
-    //         // Recreate the entire solar system at the zoomed-out level
-    //         createSolarSystem();
-    
-    //         console.log("Zoomed out, zoom factor:", zoomFactor);
-    //     }
-    
-    //     // Apply the zoom factor with smooth transition
-    //     const container = d3.select("#solar-system");
-    //     container.transition()
-    //         .duration(500) // Smooth transition
-    //         .style("transform", `scale(${zoomFactor})`); // Apply zoom
-    // });
-    
-    // // Append the zoom toggle button to the body
-    // document.body.appendChild(toggleZoom);
-    
+  //this is half-balked code for the zoom button:
+
+  // // Create and set up the zoom toggle button
+  // const toggleZoom = document.createElement("button");
+  // toggleZoom.innerHTML = "Zoom in/out";
+  // toggleZoom.id = "zoom-toggle";
+
+  // let zoomFactor = 1;  // Initial zoom state (zoomed out)
+
+  // toggleZoom.addEventListener("click", () => {
+  //     console.log("Zoom factor:", zoomFactor);
+
+  //     if (zoomFactor === 1) {
+  //         // Zoom in (change zoom factor to 5)
+  //         solarSystem.camera.zoomFactor = 5;
+
+  //         // Clear previous elements before creating new ones
+  //         d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
+
+  //         createSolarSystem();
+
+  //         console.log("Zoomed in, zoom factor:", zoomFactor);
+  //     } else {
+  //         // Zoom out (reset zoom factor to 1)
+  //         solarSystem.camera.zoomFactor = 1;
+
+  //         // Clear previous elements before creating new ones
+  //         d3.select("#solar-system").selectAll("*").remove(); // This will remove all child elements inside the container
+
+  //         // Recreate the entire solar system at the zoomed-out level
+  //         createSolarSystem();
+
+  //         console.log("Zoomed out, zoom factor:", zoomFactor);
+  //     }
+
+  //     // Apply the zoom factor with smooth transition
+  //     const container = d3.select("#solar-system");
+  //     container.transition()
+  //         .duration(500) // Smooth transition
+  //         .style("transform", `scale(${zoomFactor})`); // Apply zoom
+  // });
+
+  // // Append the zoom toggle button to the body
+  // document.body.appendChild(toggleZoom);
 }
 
+// Call the function to add the reset button
 
-  
-  // Call the function to add the reset button
+function createLegend() {
+  // Create a container for the legend
+  const legend = d3.select("body").append("div").attr("id", "legend");
 
-  
+  // Add title to the legend
+  legend
+    .append("h1")
+    .text("Rock-et Science: Near Earth Objects")
+    .style("text-align", "left-align")
+    .style("margin-bottom", "10px");
 
-  function createLegend() {
-    // Create a container for the legend
-    const legend = d3.select("body").append("div")
-        .attr("id", "legend");
-       
+  legend
+    .append("h2")
+    .text("A speculative map of near Earth objects using the ")
+    .style("text-align", "left-align")
+    .style("margin-bottom", "10px")
+    .append("a")
+    .attr(
+      "href",
+      "https://api.nasa.gov/neo/rest/v1/feed?start_date=2015-09-07&end_date=2015-09-08&api_key=DEMO_KEY"
+    )
+    .attr("target", "_blank")
+    .style("color", "lightblue")
+    .text("NASA API");
 
-    // Add title to the legend
-    legend.append("h1")
-        .text("Rock-et Science: Near Earth Objects")
-        .style("text-align", "left-align")
-        .style("margin-bottom", "10px");
+  // Define the legend entries (You can modify these based on your requirements)
+  const legendEntries = [
+    { label: "Near Earth Asteroids", color: "white", description: "Safe" },
+    {
+      label: "Sentry Object",
+      color: "#ff4444",
+      description: "Potentially hazardous",
+    },
+    {
+      label: "Planets and satellites",
+      color: "#00ff00",
+      description: "Moon, Mars, Venus, Mercury",
+    },
+  ];
 
-    legend.append("h2")
-        .text("A speculative map of near Earth objects using the ")
-        .style("text-align", "left-align")
-        .style("margin-bottom", "10px")
-        .append("a")
-        .attr("href", "https://api.nasa.gov/neo/rest/v1/feed?start_date=2015-09-07&end_date=2015-09-08&api_key=DEMO_KEY")
-        .attr("target", "_blank")
-        .style("color", "lightblue")
-        .text("NASA API");
+  // Append each legend entry
+  const entry = legend
+    .selectAll(".legend-entry")
+    .data(legendEntries)
+    .enter()
+    .append("div")
+    .attr("class", "legend-entry")
+    .style("display", "flex")
+    .style("align-items", "center")
+    .style("margin-bottom", "0px");
 
-    // Define the legend entries (You can modify these based on your requirements)
-    const legendEntries = [
-    
-        { label: "Near Earth Asteroids", color: "white", description: "Safe" },
-        { label: "Sentry Object", color: "#ff4444", description: "Potentially hazardous" },
-        { label: "Planets and satellites", color: "#00ff00", description: "Moon, Mars, Venus, Mercury" }
-    ];
+  // Add color boxes and labels
+  entry
+    .append("div")
+    .style("width", "20px")
+    .style("height", "20px")
+    .style("background-color", (d) => d.color)
+    .style("margin-right", "10px")
+    .style("border-radius", "10px");
 
-    // Append each legend entry
-    const entry = legend.selectAll(".legend-entry")
-        .data(legendEntries)
-        .enter().append("div")
-        .attr("class", "legend-entry")
-        .style("display", "flex")
-        .style("align-items", "center")
-        .style("margin-bottom", "0px");
+  // Add labels and descriptions
 
-    // Add color boxes and labels
-    entry.append("div")
-        .style("width", "20px")
-        .style("height", "20px")
-        .style("background-color", d => d.color)
-        .style("margin-right", "10px")
-        .style("border-radius", "10px");
-
-    // Add labels and descriptions
-
-    entry.append("h3")
-        .text(d => `${d.label}`);
+  entry.append("h3").text((d) => `${d.label}`);
 }
 
 // Call the function to create the legend
 createLegend();
-
-

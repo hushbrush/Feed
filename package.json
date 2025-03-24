@@ -4,6 +4,12 @@
   "description": "Fetch asteroid data from NASA API",
   "main": "fetchData.js",
   "dependencies": {
-    "node-fetch": "^2.6.1"
-  }
+    "node-fetch": "^2.7.0"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC"
 }
