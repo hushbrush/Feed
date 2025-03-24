@@ -22,7 +22,7 @@ const solarSystem = {
     x: 0,
     y: 0,
     scale: 1,
-    zoomFactor: 4, // Reduced from 6 to 4 for a slightly wider view
+    zoomFactor: 5, // Reduced from 6 to 4 for a slightly wider view
   },
   keys: {
     up: false,
@@ -394,7 +394,9 @@ function createOrbits(centerX, centerY) {
     solarSystem.container.appendChild(planetElement);
   });
 }
-
+function getRandomSize(maxSizeMeters, minSizeMeters) {
+    return Math.random() * (maxSizeMeters - minSizeMeters) + minSizeMeters;
+}
 // Create asteroids on their orbits
 function createAsteroids(centerX, centerY) {
   solarSystem.asteroids.forEach((asteroid) => {
@@ -410,8 +412,9 @@ function createAsteroids(centerX, centerY) {
 
     
     const minSizeMeters = asteroid.estimated_diameter.meters.estimated_diameter_min;
-    console.log(minSizeMeters);
-    const diameterInPixels = Math.max(2, Math.min(25, minSizeMeters / 2));
+    const maxSizeMeters = asteroid.estimated_diameter.meters.estimated_diameter_max;
+
+    const diameterInPixels = Math.max(2, Math.min(25, (minSizeMeters)/ 2));
 
     // Get velocity in km/s for tooltip display
     const velocityKmS = parseFloat(
@@ -883,4 +886,40 @@ function xmlToJson(xml) {
     return obj;
 }
 
+function addResetButton() {
+    const resetButton = document.createElement("button");
+    resetButton.innerHTML = "Reset";
+    resetButton.id = "reset-button";
+  
+    resetButton.addEventListener("click", () => {
+    //   // Select the container and reset its transform (zoom and pan)
+    //   const container = d3.select("#solar-system");
+    //   const containerRect = container.node().getBoundingClientRect();  // Correct this to work with d3
+    //   const screenCenterX = containerRect.width / 2;
+    //   const screenCenterY = containerRect.height / 2;
+    
+    //   // Calculate camera offset to keep ship centered
+    //   solarSystem.camera.x = solarSystem.ship.x - screenCenterX;
+    //   solarSystem.camera.y = solarSystem.ship.y - screenCenterY;
+
+    //   // Reset to the original state (center and scale)
+    //   container.transition()
+    //     .duration(500) // Optional smooth transition for reset
+    //     .style("transform", `scale(1) translate(${solarSystem.camera.x}px, ${solarSystem.camera.y}px)`); // Reset scale and position with correct template literal
+
+    //   // Reset ship position
+      solarSystem.ship.x = solarSystem.earthPosition.x;
+      solarSystem.ship.y = solarSystem.earthPosition.y;
+        updateCamera(); 
+    });
+
+  
+    // Append the reset button to the body
+    document.body.appendChild(resetButton);
+}
+
+  
+  // Call the function to add the reset button
+  addResetButton();
+  
 
