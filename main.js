@@ -1021,40 +1021,10 @@ function createLegend() {
   // Create a container for the legend
   const legend = d3.select("body").append("div").attr("id", "legend");
 
-  // Add title to the legend
-  legend
-    .append("h1")
-    .text("Rock-et Science: Near Earth Objects")
-    .style("text-align", "left-align")
-    .style("margin-bottom", "10px");
-
-  legend
-    .append("h2")
-    .text("A speculative map of near Earth objects using the ")
-    .style("text-align", "left-align")
-    .style("margin-bottom", "10px")
-    .append("a")
-    .attr(
-      "href",
-      "https://api.nasa.gov/neo/rest/v1/feed?start_date=2015-09-07&end_date=2015-09-08&api_key=DEMO_KEY"
-    )
-    .attr("target", "_blank")
-    .style("color", "lightblue")
-    .text("NASA API");
-
   // Define the legend entries (You can modify these based on your requirements)
   const legendEntries = [
-    { label: "Near Earth Asteroids", color: "white", description: "Safe" },
-    {
-      label: "Sentry Object",
-      color: "#ff4444",
-      description: "Potentially hazardous",
-    },
-    {
-      label: "Planets and satellites",
-      color: "#00ff00",
-      description: "Moon, Mars, Venus, Mercury",
-    },
+    { label: "ASTEROID", color: "white" },
+    { label: "POTENTIALLY DANGEROUS", color: "#ff4444" },
   ];
 
   // Append each legend entry
@@ -1066,20 +1036,21 @@ function createLegend() {
     .attr("class", "legend-entry")
     .style("display", "flex")
     .style("align-items", "center")
-    .style("margin-bottom", "0px");
+    .style("margin-bottom", "5px")
+    .style("justify-content", "flex-end");
 
-  // Add color boxes and labels
+  // Add labels
+  entry.append("h3").text((d) => d.label);
+
+  // Add color dots
   entry
     .append("div")
-    .style("width", "20px")
-    .style("height", "20px")
+    .attr("class", "legend-icon")
+    .style("width", "12px")
+    .style("height", "12px")
     .style("background-color", (d) => d.color)
-    .style("margin-right", "10px")
-    .style("border-radius", "10px");
-
-  // Add labels and descriptions
-
-  entry.append("h3").text((d) => `${d.label}`);
+    .style("margin-left", "8px")
+    .style("border-radius", "50%");
 }
 
 // Call the function to create the legend

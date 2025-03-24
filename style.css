@@ -6,7 +6,7 @@
 }
 
 body {
-  font-family: Arial, sans-serif;
+  font-family: "Kode Mono", monospace;
   background-color: #000;
   overflow: hidden;
   width: 100vw;
@@ -99,6 +99,7 @@ body {
   background-color: #00ff00;
   box-shadow: 0 0 10px #00ff00;
   z-index: 5;
+  display: none;
 }
 
 .planet:hover {
@@ -282,50 +283,83 @@ body {
 }
 
 #legend {
-  border: rgba(255, 255, 255, 1);
-  border-width: 10px;
   position: absolute;
-  top: 20px;
-  left: 20px;
+  bottom: 20px;
+  right: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
   padding: 10px;
-  background-color: rgba(0, 0, 0, 0.7);
   color: white;
-  border-radius: 5px;
   font-size: 12px;
   z-index: 1000;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.5);
 }
 
 h1 {
-  font-family: "sol-pro", sans-serif;
-  font-weight: 500;
+  font-family: "Kode Mono", monospace;
+  font-weight: 400;
   font-style: normal;
-  font-size: 60px;
-  padding-bottom: 0px;
+  font-size: 12px;
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  text-transform: uppercase;
 }
 
 h2 {
-  font-family: "scandia-line-web", sans-serif;
-  font-weight: 500;
+  font-family: "Kode Mono", monospace;
+  font-weight: 400;
   font-style: normal;
-  font-size: 20px;
-  padding-bottom: 30px;
+  font-size: 12px;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  text-transform: uppercase;
 }
 
 h3 {
-  font-family: "scandia-line-web", sans-serif;
-  font-weight: 100;
-  font-style: normal;
-  font-size: 16px;
-  padding: 2px;
-}
-h4 {
-  font-family: "scandia-line-web", sans-serif;
-  font-weight: 100;
+  font-family: "Kode Mono", monospace;
+  font-weight: 400;
   font-style: normal;
   font-size: 12px;
+  color: white;
+  text-transform: uppercase;
+  padding: 2px;
+}
+
+h4 {
+  font-family: "Kode Mono", monospace;
+  font-weight: 400;
+  font-style: normal;
+  font-size: 12px;
+  color: white;
+}
+
+.legend-entry {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  margin-bottom: 5px;
 }
 
 .legend-entry h3 {
   padding: 4px;
+}
+
+.legend-icon {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-left: 8px;
+}
+
+.legend-icon.asteroid {
+  background-color: white;
+}
+
+.legend-icon.dangerous {
+  background-color: #ff4444;
 }
